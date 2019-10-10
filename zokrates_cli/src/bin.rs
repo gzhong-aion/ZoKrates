@@ -46,6 +46,7 @@ fn cli() -> Result<(), String> {
     const VERIFICATION_KEY_DEFAULT_PATH: &str = "verification.key";
     const PROVING_KEY_DEFAULT_PATH: &str = "proving.key";
     const VERIFICATION_CONTRACT_DEFAULT_PATH: &str = "verifier.sol";
+    const VERIFICATION_AVM_CONTRACT_DEFAULT_PATH: &str = "Verifier.java";
     const WITNESS_DEFAULT_PATH: &str = "witness";
     const JSON_PROOF_PATH: &str = "proof.json";
     let default_scheme = env::var("ZOKRATES_PROVING_SCHEME").unwrap_or(String::from("g16"));
@@ -138,6 +139,42 @@ fn cli() -> Result<(), String> {
             .takes_value(true)
             .required(false)
             .default_value(VERIFICATION_CONTRACT_DEFAULT_PATH)
+        ).arg(Arg::with_name("proving-scheme")
+            .short("s")
+            .long("proving-scheme")
+            .help("Proving scheme to use to export the verifier. Available options are G16 (default), PGHR13 and GM17")
+            .value_name("FILE")
+            .takes_value(true)
+            .required(false)
+            .default_value(&default_scheme)
+        ).arg(Arg::with_name("abi")
+            .short("a")
+            .long("abi")
+            .help("Flag for setting the version of the ABI Encoder used in the contract. Default is v1.")
+            .takes_value(true)
+            .possible_values(&["v1", "v2"])
+            .default_value(&default_solidity_abi)
+            .required(false)
+        )
+    )
+    .subcommand(SubCommand::with_name("export-avm-verifier")
+        .about("Exports a verifier as AVM smart contract")
+        .arg(Arg::with_name("input")
+            .short("i")
+            .long("input")
+            .help("Path of the verifier")
+            .value_name("FILE")
+            .takes_value(true)
+            .required(false)
+            .default_value(VERIFICATION_KEY_DEFAULT_PATH)
+        ).arg(Arg::with_name("output")
+            .short("o")
+            .long("output")
+            .help("Path of the output file")
+            .value_name("FILE")
+            .takes_value(true)
+            .required(false)
+            .default_value(VERIFICATION_AVM_CONTRACT_DEFAULT_PATH)
         ).arg(Arg::with_name("proving-scheme")
             .short("s")
             .long("proving-scheme")
@@ -473,6 +510,33 @@ fn cli() -> Result<(), String> {
                 let reader = BufReader::new(input_file);
 
                 let verifier = scheme.export_solidity_verifier(reader, is_abiv2);
+
+                //write output file
+                let output_path = Path::new(sub_matches.value_of("output").unwrap());
+                let output_file = File::create(&output_path)
+                    .map_err(|why| format!("couldn't create {}: {}", output_path.display(), why))?;
+
+                let mut writer = BufWriter::new(output_file);
+
+                writer
+                    .write_all(&verifier.as_bytes())
+                    .map_err(|_| "Failed writing output to file.".to_string())?;
+                println!("Finished exporting verifier.");
+            }
+        }
+        ("export-avm-verifier", Some(sub_matches)) => {
+            {
+                let scheme = get_scheme(sub_matches.value_of("proving-scheme").unwrap())?;
+                let is_abiv2 = sub_matches.value_of("abi").unwrap() == "v2";
+                println!("Exporting verifier...");
+
+                // read vk file
+                let input_path = Path::new(sub_matches.value_of("input").unwrap());
+                let input_file = File::open(&input_path)
+                    .map_err(|why| format!("couldn't open {}: {}", input_path.display(), why))?;
+                let reader = BufReader::new(input_file);
+
+                let verifier = scheme.export_avm_verifier(reader);
 
                 //write output file
                 let output_path = Path::new(sub_matches.value_of("output").unwrap());
