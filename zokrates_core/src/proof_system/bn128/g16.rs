@@ -149,7 +149,81 @@ impl ProofSystem for G16 {
     }
 
     fn export_avm_verifier(&self, reader: BufReader<File>) -> String {
-        CONTRACT_AVM_TEMPLATE.to_string()
+        let mut lines = reader.lines();
+        let mut template_text = String::from(CONTRACT_AVM_TEMPLATE);
+
+        
+        let gamma_abc_template = String::from("gamma_abc[index] = new G1Point(coord, coord);"); //copy this for each entry
+        //replace things in template
+        let vk_regex = Regex::new(r#"(<%vk_[^i%]*%>)"#).unwrap();
+        let vk_gamma_abc_len_regex = Regex::new(r#"(<%vk_gamma_abc_length%>)"#).unwrap();
+        let vk_gamma_abc_index_regex = Regex::new(r#"index"#).unwrap();
+        let vk_gamma_abc_points_regex = Regex::new(r#"coord"#).unwrap();
+        let vk_gamma_abc_repeat_regex = Regex::new(r#"(<%vk_gamma_abc_pts%>)"#).unwrap();
+        let vk_input_len_regex = Regex::new(r#"(<%vk_input_length%>)"#).unwrap();
+
+        let vk_value = Regex::new(r"(?P<v>0[xX][0-9a-fA-F]{64})").unwrap();
+
+        for _ in 0..4 {
+            let current_line: String = lines
+                .next()
+                .expect("Unexpected end of file in verification key!")
+                .unwrap();
+            let current_line_split: Vec<&str> = current_line.split("=").collect();
+            assert_eq!(current_line_split.len(), 2);
+            for value in vk_value.find_iter(current_line_split[1]) {
+                template_text = vk_regex
+                    .replace(template_text.as_str(), value.as_str())
+                    .into_owned();
+            }
+        }
+
+        let current_line: String = lines
+            .next()
+            .expect("Unexpected end of file in verification key!")
+            .unwrap();
+        let current_line_split: Vec<&str> = current_line.split("=").collect();
+        assert_eq!(current_line_split.len(), 2);
+        let gamma_abc_count: i32 = current_line_split[1].trim().parse().unwrap();
+
+        template_text = vk_gamma_abc_len_regex
+            .replace(
+                template_text.as_str(),
+                format!("{}", gamma_abc_count).as_str(),
+            )
+            .into_owned();
+
+        let mut gamma_abc_repeat_text = String::new();
+        for x in 0..gamma_abc_count {
+            let mut curr_template = gamma_abc_template.clone();
+            let current_line: String = lines
+                .next()
+                .expect("Unexpected end of file in verification key!")
+                .unwrap();
+            let current_line_split: Vec<&str> = current_line.split("=").collect();
+            assert_eq!(current_line_split.len(), 2);
+            curr_template = vk_gamma_abc_index_regex
+                .replace(curr_template.as_str(), format!("{}", x).as_str())
+                .into_owned();
+            for value in vk_value.find_iter(current_line_split[1]) {
+                curr_template = vk_gamma_abc_points_regex
+                .replace(curr_template.as_str(), value.as_str())
+                .into_owned();
+            }
+
+            gamma_abc_repeat_text.push_str(curr_template.as_str());
+            if x < gamma_abc_count - 1 {
+                gamma_abc_repeat_text.push_str("\n        ");
+            }
+        }
+
+        template_text = vk_gamma_abc_repeat_regex
+            .replace(template_text.as_str(), gamma_abc_repeat_text.as_str())
+            .into_owned();
+
+        let re = Regex::new(r"0[xX](?P<v>[0-9a-fA-F]{64})").unwrap();
+        template_text = re.replace_all(&template_text, "\"$v\"").to_string();
+        format!("{}", template_text)
     }
 }
 
@@ -407,40 +481,15 @@ public class Verifier {
         }
     }
 
-        protected static VerifyingKey verifyingKey() {
-        G1Point alpha = new G1Point(
-                new Fp(new BigInteger("0019120ee247a3e5c0c710de50f86f8be890b9f8ce35591abf182f4d591db8f8", 16)),
-                new Fp(new BigInteger("087d9b6ea30dc1fefda2468a53b82005fabfcdd026cee359444642ac16e14e9c", 16))
-        );
-        G2Point beta = new G2Point(
-                new Fp2(new BigInteger("2c76e975c13721befe2860550097061edad5d5e6d4b55d7e0888aa4081bb1b70", 16),
-                        new BigInteger("03beea23c38a06edc9577b174c9e046789291db7ef51251e02e053adf41d6ab1", 16)),
-                new Fp2(new BigInteger("11820c74e2c88cebeb132852cb0b02fdd23cc77e2927fe70c96bee0342c11c2f", 16),
-                        new BigInteger("15383eda06e6734eedcdea2d7564c1827bca49490452bc70374e07d13a3a38ea", 16))
-        );
-        G2Point gamma = new G2Point(
-                new Fp2(new BigInteger("125c637232482e34cf00c0c6393bafe26e310343f4f6383cf6e65ff2a8fab351", 16),
-                        new BigInteger("23d45e985239a8c7d0cd091c66fd204d530df129ebbde3cba00950360f60a0bb", 16)),
-                new Fp2(new BigInteger("1bce5f9e19392c141016211714944bf88222d77059a7b8939de4d942bfb815b6", 16),
-                        new BigInteger("133f401b96c4165c139e22e7dadf859a3a2169485bc9f462042779b76820f444", 16))
-        );
-        G2Point delta = new G2Point(
-                new Fp2(new BigInteger("2d218c6c3c97d36c6a36bdae8aaad026787d5d7bc73fcac935302901cccc8cac", 16),
-                        new BigInteger("07dcfa8f6093776cc7003f0a7655178642c624b5158f7767d446e99123569668", 16)),
-                new Fp2(new BigInteger("0d34b1da6e22c6fc31ad42e9165598572c98c591e03877bf398d95fc620fc7a9", 16),
-                        new BigInteger("1375019c6afcce46743219e2584f57fac17a99f6f105c47d77ccc15f4a12514f", 16))
-        );
-        G1Point[] gamma_abc = new G1Point[]{
-                new G1Point(
-                        new Fp(new BigInteger("2da89765d6c25c6d0d63a767bf9d30a7e6b4c040663a8dc1a1a002085d1009c3", 16)),
-                        new Fp(new BigInteger("03beb639535322312a2eace06a3ffad50e09fbd12d4762553c166d7e47b20af9", 16))),
-                new G1Point(
-                        new Fp(new BigInteger("1e870e8b098c7053a851060c1d965b9e177a37c4a6c3bfa9539733ad48704871", 16)),
-                        new Fp(new BigInteger("279795f70d42bfe052be9153148c6d16b63bf4564172d45666535882ffd21070", 16))),
-                new G1Point(
-                        new Fp(new BigInteger("126b7087066e197fd44591d3f9f2df60fa08cc5030f38f5671a13b4bd7d0cd25", 16)),
-                        new Fp(new BigInteger("1404cadb49f2910570d68c8163766e71a92676bc3f24c6118574a3ecbd4f0578", 16)))
-        };
+    protected static VerifyingKey verifyingKey() {
+        G1Point alpha = new G1Point(<%vk_ax%>, <%vk_ay%>);
+        G2Point beta = new G2Point(<%vk_bxx%>, <%vk_bxy%>, <%vk_byx%>, <%vk_byy%>);
+        G2Point gamma = new G2Point(<%vk_gammaxx%>, <%vk_gammaxy%>, <%vk_gammayx%>, <%vk_gammayy%>);
+        G2Point delta = new G2Point(<%vk_deltaxx%>, <%vk_deltaxy%>, <%vk_deltayx%>, <%vk_deltayy%>);
+        
+        G1Point[] gamma_abc = new G1Point[<%vk_gamma_abc_length%>];
+        <%vk_gamma_abc_pts%>
+
         return new VerifyingKey(alpha, beta, gamma, delta, gamma_abc);
     }
 
