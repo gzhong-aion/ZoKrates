@@ -164,18 +164,35 @@ impl ProofSystem for G16 {
 
         let vk_value = Regex::new(r"(?P<v>0[xX][0-9a-fA-F]{64})").unwrap();
 
-        for _ in 0..4 {
+        let current_line: String = lines
+            .next()
+            .expect("Unexpected end of file in verification key!")
+            .unwrap();
+        let current_line_split: Vec<&str> = current_line.split("=").collect();
+        assert_eq!(current_line_split.len(), 2);
+        for value in vk_value.find_iter(current_line_split[1]) {
+            template_text = vk_regex
+                .replace(template_text.as_str(), value.as_str())
+                .into_owned();
+        }
+
+        for _ in 0..3 {
             let current_line: String = lines
                 .next()
                 .expect("Unexpected end of file in verification key!")
                 .unwrap();
             let current_line_split: Vec<&str> = current_line.split("=").collect();
             assert_eq!(current_line_split.len(), 2);
-            for value in vk_value.find_iter(current_line_split[1]) {
-                template_text = vk_regex
-                    .replace(template_text.as_str(), value.as_str())
-                    .into_owned();
-            }
+                let mut values = Vec::new();
+                for value in vk_value.find_iter(current_line_split[1]) {
+                    values.push(value.as_str());
+                }
+                let order: [usize;4] = [1,0,3,2];
+                for i in &order {
+                    template_text = vk_regex
+                            .replace(template_text.as_str(), values[*i])
+                            .into_owned();
+                }
         }
 
         let current_line: String = lines
@@ -407,12 +424,11 @@ contract Verifier {
 
 
 const CONTRACT_AVM_TEMPLATE: &str = r#"
-
-package org.aion.avm.embed.tetryon;
+package org.aion.tetryon;
 
 import avm.Blockchain;
-import org.aion.avm.embed.tetryon.bn128.*;
 import org.aion.avm.tooling.abi.Callable;
+import org.aion.tetryon.bn128.*;
 
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -444,7 +460,7 @@ public class Verifier {
         }
     }
 
-        protected static class Proof {
+    protected static class Proof {
         public final G1Point a;
         public final G2Point b;
         public final G1Point c;
@@ -471,7 +487,7 @@ public class Verifier {
         }
 
         public static Proof deserialize(byte[] data) {
-            assert data.length == 8*WORD_SIZE;
+            Blockchain.require(data.length == 8*WORD_SIZE);
 
             G1Point a = Util.deserializeG1(Arrays.copyOfRange(data, 0, 2*WORD_SIZE));
             G2Point b = Util.deserializeG2(Arrays.copyOfRange(data, 2*WORD_SIZE, 6*WORD_SIZE));
@@ -493,16 +509,16 @@ public class Verifier {
         return new VerifyingKey(alpha, beta, gamma, delta, gamma_abc);
     }
 
-        public static boolean verify(BigInteger[] input, Proof proof) {
+    public static boolean verify(BigInteger[] input, Proof proof) throws Exception {
 
         BigInteger snarkScalarField = new BigInteger("21888242871839275222246405745257275088548364400416034343698204186575808495617");
         VerifyingKey vk = verifyingKey();
-        require(input.length + 1 == vk.gamma_abc.length);
+        Blockchain.require(input.length + 1 == vk.gamma_abc.length);
 
         // X = gamma_0 + gamma_1 * input_0 + gamma_2 * input_1
         G1Point X = new G1Point(Fp.zero(), Fp.zero());
         for (int i = 0; i < input.length; i++) {
-            require(input[i].compareTo(snarkScalarField) < 0);
+            Blockchain.require(input[i].compareTo(snarkScalarField) < 0);
             G1Point tmp = G1.mul(vk.gamma_abc[i + 1], input[i]);
             if (i == 0)
                 X = tmp;
@@ -528,25 +544,13 @@ public class Verifier {
 
     @Callable
     public static boolean verify(BigInteger[] input, byte[] proof) {
-        //require(proof.length == 2 + 4 + 2); // a in g1, b in g2, c in g1
-
-        return verify(input, Proof.deserialize(proof));
-
-        /*
-        return verify(input, new Proof(
-                new G1Point(new Fp(proof[0]), new Fp(proof[1])),
-                new G2Point(
-                        new Fp2(proof[2], proof[3]),
-                        new Fp2(proof[4], proof[5])
-                ),
-                new G1Point(new Fp(proof[6]), new Fp(proof[7]))
-        ));*/
-    }
-
-    private static void require(boolean condition) {
-        if (!condition) {
-            Blockchain.revert();
+        try {
+            return verify(input, Proof.deserialize(proof));
+        } catch (Exception e) {
+            Blockchain.println("verify() failed with exception: " + e.getMessage());
         }
+
+        return false;
     }
 }
 
