@@ -429,7 +429,6 @@ package org.aion.tetryon;
 
 import avm.Blockchain;
 import org.aion.avm.tooling.abi.Callable;
-import org.aion.tetryon.bn128.*;
 
 import java.math.BigInteger;
 import java.util.Arrays;
