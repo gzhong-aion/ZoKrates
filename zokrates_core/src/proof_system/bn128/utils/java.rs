@@ -1,5 +1,5 @@
 pub const JAVA_LIB_FP: &str = r#"// This file is MIT Licensed
-package org.aion.tetryon;
+package org.oan.tetryon;
 
 import java.math.BigInteger;
 
@@ -52,7 +52,7 @@ public class Fp {
 "#;
 
 pub const JAVA_LIB_FP2: &str = r#"// This file is MIT Licensed
-package org.aion.tetryon;
+package org.oan.tetryon;
 
 import java.math.BigInteger;
 
@@ -181,7 +181,7 @@ public class Fp2 {
 "#;
 
 pub const JAVA_LIB_G1: &str = r#"// This file is MIT Licensed
-package org.aion.tetryon;
+package org.oan.tetryon;
 
 import avm.AltBn128;
 
@@ -253,7 +253,7 @@ public class G1 {
 "#;
 
 pub const JAVA_LIB_G1POINT: &str = r#"// This file is MIT Licensed
-package org.aion.tetryon;
+package org.oan.tetryon;
 
 import java.math.BigInteger;
 
@@ -304,7 +304,7 @@ public class G1Point {
 "#;
 
 pub const JAVA_LIB_G2: &str = r#"// This file is MIT Licensed
-package org.aion.tetryon;
+package org.oan.tetryon;
 
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -535,7 +535,7 @@ public class G2 {
 "#;
 
 pub const JAVA_LIB_G2POINT: &str = r#"// This file is MIT Licensed
-package org.aion.tetryon;
+package org.oan.tetryon;
 
 import java.math.BigInteger;
 
@@ -586,7 +586,7 @@ public class G2Point {
 "#;
 
 pub const JAVA_LIB_PAIRING: &str = r#"// This file is MIT Licensed
-package org.aion.tetryon;
+package org.oan.tetryon;
 
 import avm.AltBn128;
 
@@ -661,7 +661,7 @@ public class Pairing {
 "#;
 
 pub const JAVA_LIB_UTIL: &str = r#"// This file is MIT Licensed
-package org.aion.tetryon;
+package org.oan.tetryon;
 
 public class Util {
 

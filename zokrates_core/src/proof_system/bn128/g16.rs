@@ -425,7 +425,7 @@ contract Verifier {
 
 
 const CONTRACT_AVM_TEMPLATE: &str = r#"// This file is MIT Licensed
-package org.aion.tetryon;
+package org.oan.tetryon;
 
 import avm.Blockchain;
 import org.aion.avm.tooling.abi.Callable;
