@@ -537,12 +537,18 @@ public class Verifier {
 
     @Callable
     public static boolean verify(BigInteger[] input, byte[] proof) {
+        Blockchain.println("verify() called");
+
         try {
-            return verify(input, Proof.deserialize(proof));
+            if (verify(input, Proof.deserialize(proof))) {
+                Blockchain.log("VerifySnark".getBytes(), BigInteger.ONE.toByteArray());
+                return true;
+            }
         } catch (Exception e) {
             Blockchain.println("verify() failed with exception: " + e.getMessage());
         }
 
+        Blockchain.log("VerifySnark".getBytes(), BigInteger.ZERO.toByteArray());
         return false;
     }
 }
